@@ -46,6 +46,7 @@ import {
   ERROR_CODE_MESSAGES,
   MaximumRequestSize,
 } from "./constants";
+import {z, ZodSchema} from "zod";
 
 export default class RequestHandler {
   app: App;
@@ -776,6 +777,44 @@ export default class RequestHandler {
     return;
   }
 
+  async customScriptPost(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    interface Script<T> {
+      input: ZodSchema<T>
+      execute: (input: T) => any
+    }
+
+    const customScriptId = req.params.customScriptId;
+    const customScripts: Record<string, Script<any>> = {
+      'get-day-plan': {
+        input: z.array(z.string().date()),
+        execute: (input: string[]) => {
+          // @ts-ignore
+          return this.app.plugins['obsidian-day-planner'].getTasks(
+            input.map(dayStr => window.moment(dayStr))
+          )
+        }
+      }
+    }
+
+    const cmd = customScripts[customScriptId];
+
+    if (!cmd) {
+      this.returnCannedResponse(res, { statusCode: 404 });
+      return;
+    }
+
+    try {
+      const input = cmd.input.parse(req.body);
+      res.json(cmd.execute(input));
+    } catch (e) {
+      this.returnCannedResponse(res, { statusCode: 500, message: e.message });
+      return;
+    }
+  }
+
   async searchSimplePost(
     req: express.Request,
     res: express.Response
@@ -1029,6 +1068,8 @@ export default class RequestHandler {
 
     this.api.route("/commands/").get(this.commandGet.bind(this));
     this.api.route("/commands/:commandId/").post(this.commandPost.bind(this));
+
+    this.api.route("/custom/:customScriptId").post(this.customScriptPost.bind(this));
 
     this.api.route("/search/").post(this.searchQueryPost.bind(this));
     this.api.route("/search/simple/").post(this.searchSimplePost.bind(this));
