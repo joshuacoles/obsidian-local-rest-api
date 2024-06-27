@@ -791,7 +791,7 @@ export default class RequestHandler {
 
     try {
       const input = script.input.parse(req.body);
-      res.json(script.execute(input));
+      res.json(script.execute(this.app, input));
     } catch (e) {
       this.returnCannedResponse(res, { statusCode: 500, message: e.message });
       return;
