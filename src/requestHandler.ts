@@ -792,7 +792,7 @@ export default class RequestHandler {
         input: z.array(z.string().date()),
         execute: (input: string[]) => {
           // @ts-ignore
-          return this.app.plugins['obsidian-day-planner'].getTasks(
+          return this.app.plugins.plugins['obsidian-day-planner'].getTasks(
             input.map(dayStr => window.moment(dayStr))
           )
         }
