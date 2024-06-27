@@ -46,7 +46,7 @@ import {
   ERROR_CODE_MESSAGES,
   MaximumRequestSize,
 } from "./constants";
-import {z, ZodSchema} from "zod";
+import {customScripts, CustomScript} from "./customScripts";
 
 export default class RequestHandler {
   app: App;
@@ -781,34 +781,17 @@ export default class RequestHandler {
     req: express.Request,
     res: express.Response
   ): Promise<void> {
-    interface Script<T> {
-      input: ZodSchema<T>
-      execute: (input: T) => any
-    }
-
     const customScriptId = req.params.customScriptId;
-    const customScripts: Record<string, Script<any>> = {
-      'get-day-plan': {
-        input: z.array(z.string().date()),
-        execute: (input: string[]) => {
-          // @ts-ignore
-          return this.app.plugins.plugins['obsidian-day-planner'].getTasks(
-            input.map(dayStr => window.moment(dayStr))
-          )
-        }
-      }
-    }
+    const script: CustomScript<any> | undefined = customScripts[customScriptId];
 
-    const cmd = customScripts[customScriptId];
-
-    if (!cmd) {
+    if (!script) {
       this.returnCannedResponse(res, { statusCode: 404 });
       return;
     }
 
     try {
-      const input = cmd.input.parse(req.body);
-      res.json(cmd.execute(input));
+      const input = script.input.parse(req.body);
+      res.json(script.execute(input));
     } catch (e) {
       this.returnCannedResponse(res, { statusCode: 500, message: e.message });
       return;
